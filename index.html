@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>しかくパズル PDF生成ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+        }
+        .preview-grid-container {
+            display: grid;
+            border: 2px solid #333;
+            user-select: none;
+            position: relative;
+        }
+        .preview-grid-cell {
+            width: 25px;
+            height: 25px;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        @media (max-width: 640px) {
+            .preview-grid-cell {
+                width: 22px;
+                height: 22px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">しかくパズル</h1>
+        <p class="text-center text-gray-500 mb-6">「しかくパズル」の問題と解答をPDFで作成します。</p>
+        
+        <div class="mb-6 p-4 border-2 border-dashed rounded-lg bg-gray-50 min-h-[300px] flex items-center justify-center">
+             <div id="puzzle-preview-container">
+                <!-- Grid preview will be generated here -->
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="col-span-2 flex items-center justify-center space-x-4">
+                <button id="level-down-button" class="px-5 py-2 bg-gray-300 text-gray-800 font-bold rounded-lg shadow-sm hover:bg-gray-400">-</button>
+                <div class="text-center">
+                    <p class="text-sm text-gray-500">レベル</p>
+                    <p id="level-display" class="text-xl font-bold text-indigo-600">5 x 5</p>
+                </div>
+                <button id="level-up-button" class="px-5 py-2 bg-gray-300 text-gray-800 font-bold rounded-lg shadow-sm hover:bg-gray-400">+</button>
+            </div>
+        </div>
+
+        <div class="flex flex-col items-center space-y-3">
+            <button id="next-puzzle-button" class="w-full px-8 py-3 bg-indigo-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
+                次の問題へ
+            </button>
+            <div class="w-full grid grid-cols-2 gap-3">
+                 <button id="download-question-pdf-button" class="w-full px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500" disabled>
+                    問題PDFをダウンロード
+                </button>
+                <button id="download-answer-pdf-button" class="w-full px-6 py-3 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400" disabled>
+                    解答PDFをダウンロード
+                </button>
+            </div>
+        </div>
+         <p id="pdf-message" class="text-center text-sm text-gray-400 mt-4">まず「次の問題へ」を押して問題を作成してください。</p>
+    </div>
+
+    <script>
+        // --- LOGIC CLASSES ---
+        class Rect {
+            constructor(cells) {
+                this.cells = cells;
+                this.number = cells.length;
+            }
+        }
+        class Puzzle {
+            constructor(width, height, rects) {
+                this.width = width;
+                this.height = height;
+                this.rects = rects;
+            }
+            getQuestionGrid() {
+                const grid = Array(this.height).fill(null).map(() => Array(this.width).fill(null));
+                this.rects.forEach(rect => {
+                    const randomCellIndex = Math.floor(Math.random() * rect.cells.length);
+                    const cell = rect.cells[randomCellIndex];
+                    grid[cell.r][cell.c] = rect.number;
+                });
+                return grid;
+            }
+        }
+        
+        // --- FULLY RECREATED AND VERIFIED PUZZLE DATA ---
+        const puzzles = {
+            5: [
+                new Puzzle(5, 5, [
+                    new Rect([{r:0,c:0},{r:0,c:1},{r:1,c:0},{r:1,c:1}]), // 4
+                    new Rect([{r:0,c:2},{r:0,c:3},{r:0,c:4}]), // 3
+                    new Rect([{r:1,c:2},{r:1,c:3},{r:1,c:4},{r:2,c:2},{r:2,c:3},{r:2,c:4}]), // 6
+                    new Rect([{r:2,c:0},{r:2,c:1},{r:3,c:0},{r:3,c:1},{r:4,c:0},{r:4,c:1}]), // 6
+                    new Rect([{r:3,c:2},{r:3,c:3},{r:3,c:4},{r:4,c:2},{r:4,c:3},{r:4,c:4}])  // 6
+                ])
+            ],
+            6: [
+                 new Puzzle(6, 6, [
+                    new Rect([{r:0,c:0},{r:0,c:1},{r:1,c:0},{r:1,c:1}]), // 4
+                    new Rect([{r:0,c:2},{r:0,c:3},{r:0,c:4},{r:0,c:5},{r:1,c:2},{r:1,c:3},{r:1,c:4},{r:1,c:5}]), // 8
+                    new Rect([{r:2,c:0},{r:2,c:1},{r:2,c:2},{r:3,c:0},{r:3,c:1},{r:3,c:2}]), // 6
+                    new Rect([{r:2,c:3},{r:2,c:4},{r:2,c:5},{r:3,c:3},{r:3,c:4},{r:3,c:5},{r:4,c:3},{r:4,c:4},{r:4,c:5}]), // 9
+                    new Rect([{r:4,c:0},{r:4,c:1},{r:4,c:2},{r:5,c:0},{r:5,c:1},{r:5,c:2}]), // 6
+                    new Rect([{r:5,c:3},{r:5,c:4},{r:5,c:5}]) // 3
+                ])
+            ],
+            7: [
+                new Puzzle(7, 7, [
+                    new Rect([{r:0,c:0},{r:0,c:1},{r:0,c:2},{r:1,c:0},{r:1,c:1},{r:1,c:2},{r:2,c:0},{r:2,c:1},{r:2,c:2}]), // 9
+                    new Rect([{r:0,c:3},{r:0,c:4},{r:1,c:3},{r:1,c:4},{r:2,c:3},{r:2,c:4}]), // 6
+                    new Rect([{r:0,c:5},{r:0,c:6},{r:1,c:5},{r:1,c:6},{r:2,c:5},{r:2,c:6},{r:3,c:5},{r:3,c:6}]), // 8
+                    new Rect([{r:3,c:0},{r:3,c:1},{r:3,c:2},{r:3,c:3},{r:3,c:4},{r:4,c:0},{r:4,c:1},{r:4,c:2},{r:4,c:3},{r:4,c:4},{r:5,c:0},{r:5,c:1},{r:5,c:2},{r:5,c:3},{r:5,c:4}]), // 15
+                    new Rect([{r:4,c:5},{r:4,c:6},{r:5,c:5},{r:5,c:6},{r:6,c:5},{r:6,c:6}]), // 6
+                    new Rect([{r:6,c:0},{r:6,c:1},{r:6,c:2},{r:6,c:3},{r:6,c:4}]) // 5
+                ])
+            ],
+            8: [
+                 new Puzzle(8, 8, [
+                    new Rect([{r:0,c:0},{r:0,c:1},{r:0,c:2},{r:0,c:3},{r:1,c:0},{r:1,c:1},{r:1,c:2},{r:1,c:3},{r:2,c:0},{r:2,c:1},{r:2,c:2},{r:2,c:3}]), // 12
+                    new Rect([{r:0,c:4},{r:0,c:5},{r:0,c:6},{r:0,c:7},{r:1,c:4},{r:1,c:5},{r:1,c:6},{r:1,c:7},{r:2,c:4},{r:2,c:5},{r:2,c:6},{r:2,c:7},{r:3,c:4},{r:3,c:5},{r:3,c:6},{r:3,c:7}]), // 16
+                    new Rect([{r:3,c:0},{r:3,c:1},{r:3,c:2},{r:3,c:3},{r:4,c:0},{r:4,c:1},{r:4,c:2},{r:4,c:3},{r:5,c:0},{r:5,c:1},{r:5,c:2},{r:5,c:3}]), // 12
+                    new Rect([{r:4,c:4},{r:4,c:5},{r:5,c:4},{r:5,c:5}]), // 4
+                    new Rect([{r:6,c:0},{r:6,c:1},{r:6,c:2},{r:6,c:3},{r:6,c:4},{r:6,c:5},{r:7,c:0},{r:7,c:1},{r:7,c:2},{r:7,c:3},{r:7,c:4},{r:7,c:5}]), // 12
+                    new Rect([{r:4,c:6},{r:4,c:7},{r:5,c:6},{r:5,c:7},{r:6,c:6},{r:6,c:7},{r:7,c:6},{r:7,c:7}]) // 8
+                ])
+            ],
+            9: [
+                new Puzzle(9, 9, [
+                    new Rect([{r:0,c:0},{r:0,c:1},{r:0,c:2},{r:0,c:3},{r:1,c:0},{r:1,c:1},{r:1,c:2},{r:1,c:3},{r:2,c:0},{r:2,c:1},{r:2,c:2},{r:2,c:3},{r:3,c:0},{r:3,c:1},{r:3,c:2},{r:3,c:3}]), // 16
+                    new Rect([{r:0,c:4},{r:0,c:5},{r:0,c:6},{r:0,c:7},{r:0,c:8},{r:1,c:4},{r:1,c:5},{r:1,c:6},{r:1,c:7},{r:1,c:8},{r:2,c:4},{r:2,c:5},{r:2,c:6},{r:2,c:7},{r:2,c:8}]), // 15
+                    new Rect([{r:4,c:0},{r:4,c:1},{r:4,c:2},{r:4,c:3},{r:5,c:0},{r:5,c:1},{r:5,c:2},{r:5,c:3},{r:6,c:0},{r:6,c:1},{r:6,c:2},{r:6,c:3},{r:7,c:0},{r:7,c:1},{r:7,c:2},{r:7,c:3},{r:8,c:0},{r:8,c:1},{r:8,c:2},{r:8,c:3}]), // 20
+                    new Rect([{r:3,c:4},{r:3,c:5},{r:3,c:6},{r:3,c:7},{r:3,c:8},{r:4,c:4},{r:4,c:5},{r:4,c:6},{r:4,c:7},{r:4,c:8},{r:5,c:4},{r:5,c:5},{r:5,c:6},{r:5,c:7},{r:5,c:8},{r:6,c:4},{r:6,c:5},{r:6,c:6},{r:6,c:7},{r:6,c:8},{r:7,c:4},{r:7,c:5},{r:7,c:6},{r:7,c:7},{r:7,c:8},{r:8,c:4},{r:8,c:5},{r:8,c:6},{r:8,c:7},{r:8,c:8}]) // 30
+                ])
+            ]
+        };
+        
+        const nextPuzzleButton = document.getElementById('next-puzzle-button');
+        const downloadQuestionPdfButton = document.getElementById('download-question-pdf-button');
+        const downloadAnswerPdfButton = document.getElementById('download-answer-pdf-button');
+        const previewContainer = document.getElementById('puzzle-preview-container');
+        const pdfMessage = document.getElementById('pdf-message');
+        const levelUpButton = document.getElementById('level-up-button');
+        const levelDownButton = document.getElementById('level-down-button');
+        const levelDisplay = document.getElementById('level-display');
+
+        const availableLevels = Object.keys(puzzles).map(Number).filter(level => puzzles[level].length > 0);
+        let currentLevelIndex = 0;
+        let currentPuzzle = null;
+        let currentPuzzleForLevelIndex = 0;
+
+        function updateLevelDisplay() {
+            const level = availableLevels[currentLevelIndex];
+            levelDisplay.textContent = `${level} x ${level}`;
+            levelDownButton.disabled = currentLevelIndex === 0;
+            levelUpButton.disabled = currentLevelIndex === availableLevels.length - 1;
+        }
+
+        function generateNewPuzzle() {
+            const level = availableLevels[currentLevelIndex];
+            const puzzlesForLevel = puzzles[level];
+            
+            currentPuzzleForLevelIndex = (currentPuzzleForLevelIndex + 1) % puzzlesForLevel.length;
+            currentPuzzle = puzzlesForLevel[currentPuzzleForLevelIndex];
+
+            displayPreview(currentPuzzle.getQuestionGrid());
+            
+            downloadQuestionPdfButton.disabled = false;
+            downloadAnswerPdfButton.disabled = false;
+            pdfMessage.textContent = '問題と解答をPDFでダウンロードできます。';
+        }
+
+        function displayPreview(puzzleGrid) {
+            previewContainer.innerHTML = '';
+            const gridElement = document.createElement('div');
+            const cols = puzzleGrid[0].length;
+            const cellSize = Math.floor(400 / cols);
+            
+            gridElement.className = 'preview-grid-container';
+            gridElement.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            gridElement.style.width = `${cols * cellSize}px`;
+
+            puzzleGrid.forEach(row => {
+                row.forEach(cellValue => {
+                    const cell = document.createElement('div');
+                    cell.className = 'preview-grid-cell';
+                    cell.style.width = `${cellSize}px`;
+                    cell.style.height = `${cellSize}px`;
+                    cell.style.fontSize = `${Math.max(8, cellSize * 0.4)}px`;
+                    if (cellValue !== null) {
+                        cell.textContent = cellValue;
+                    }
+                    gridElement.appendChild(cell);
+                });
+            });
+            previewContainer.appendChild(gridElement);
+        }
+
+        function createPdf(isAnswer = false) {
+            if (!currentPuzzle) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // IMPORTANT: For proper Japanese display in jsPDF, a Japanese font must be embedded.
+            // This uses a standard font, so characters may not render correctly in the PDF.
+            doc.setFont('helvetica', 'normal');
+
+            const title = isAnswer ? 'しかくパズル - 解答' : 'しかくパズル';
+            // Using English as a fallback for the PDF title to prevent garbled characters without font embedding.
+            const pdfTitle = isAnswer ? 'Shikaku Puzzle - Answer' : 'Shikaku Puzzle';
+            doc.setFontSize(22);
+            doc.text(pdfTitle, 105, 20, { align: 'center' });
+            
+            const puzzleGrid = currentPuzzle.getQuestionGrid();
+            const rows = currentPuzzle.height;
+            const cols = currentPuzzle.width;
+            const cellSize = 180 / Math.max(rows, cols);
+            const startX = (210 - (cols * cellSize)) / 2;
+            const startY = 40;
+
+            if (isAnswer) {
+                const colors = ['#FFC3A0', '#C3E5A0', '#A0D2FF', '#F9A0FF', '#FFFFA0', '#A0FFF4', '#FFB3BA', '#FFDFBA', '#BAFFC9', '#BAE1FF'];
+                currentPuzzle.rects.forEach((rect, index) => {
+                    const color = colors[index % colors.length];
+                    doc.setFillColor(color.substring(1));
+                    rect.cells.forEach(cell => {
+                         doc.rect(startX + cell.c * cellSize, startY + cell.r * cellSize, cellSize, cellSize, 'F');
+                    });
+                });
+            }
+
+            doc.setLineWidth(0.5);
+            doc.rect(startX, startY, cols * cellSize, rows * cellSize);
+            doc.setLineWidth(0.1);
+            for (let i = 1; i < rows; i++) doc.line(startX, startY + i * cellSize, startX + cols * cellSize, startY + i * cellSize);
+            for (let j = 1; j < cols; j++) doc.line(startX + j * cellSize, startY, startX + j * cellSize, startY + rows * cellSize);
+
+            doc.setFontSize(Math.min(20, cellSize * 0.7));
+            doc.setTextColor(0, 0, 0);
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (puzzleGrid[r][c] !== null) {
+                        doc.text(puzzleGrid[r][c].toString(), startX + c * cellSize + (cellSize / 2), startY + r * cellSize + (cellSize / 1.5), { align: 'center' });
+                    }
+                }
+            }
+            
+            doc.save(isAnswer ? 'shikaku-puzzle-answer.pdf' : 'shikaku-puzzle.pdf');
+        }
+
+        nextPuzzleButton.addEventListener('click', generateNewPuzzle);
+        downloadQuestionPdfButton.addEventListener('click', () => createPdf(false));
+        downloadAnswerPdfButton.addEventListener('click', () => createPdf(true));
+
+        levelUpButton.addEventListener('click', () => {
+            if (currentLevelIndex < availableLevels.length - 1) {
+                currentLevelIndex++;
+                currentPuzzleForLevelIndex = -1;
+                updateLevelDisplay();
+                generateNewPuzzle();
+            }
+        });
+
+        levelDownButton.addEventListener('click', () => {
+            if (currentLevelIndex > 0) {
+                currentLevelIndex--;
+                currentPuzzleForLevelIndex = -1;
+                updateLevelDisplay();
+                generateNewPuzzle();
+            }
+        });
+
+        // Initial setup
+        updateLevelDisplay();
+        generateNewPuzzle();
+
+    </script>
+</body>
+</html>
