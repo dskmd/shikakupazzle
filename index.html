@@ -67,10 +67,6 @@
     </div>
 
     <script>
-        // --- BASE64 FONT DATA FOR PDF EMBEDDING ---
-        // This is a large string containing the font data to ensure Japanese characters are displayed correctly.
-        const mplus_normal_base64 = "AAEAAAARAQAABAAQR0RFRg... (very long font data string)"; // Note: The actual Base64 string is extremely long and has been truncated here for readability. The full data is included in the actual code.
-
         // --- LOGIC CLASSES ---
         class Rect {
             constructor(cells) {
@@ -234,15 +230,25 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // --- FONT EMBEDDING FOR JAPANESE ---
-            doc.addFileToVFS("mplus-1p-regular.ttf", mplus_normal_base64);
-            doc.addFont("mplus-1p-regular.ttf", "mplus", "normal");
-            doc.setFont("mplus");
+            // --- FONT SETTING FOR PDF ---
+            // Using a standard font as a fallback. Japanese might not display correctly on all systems.
+            // A full solution requires embedding a Japanese font file.
+            doc.setFont('helvetica', 'normal');
 
             const title = isAnswer ? 'しかくパズル - 解答' : 'しかくパズル';
-            doc.setFontSize(22);
-            doc.text(title, 105, 20, { align: 'center' });
             
+            // We'll try to use the Japanese title. It may or may not work depending on the user's PDF viewer.
+            // This is a limitation of jsPDF without full font embedding.
+            try {
+                doc.setFontSize(22);
+                doc.text(title, 105, 20, { align: 'center' });
+            } catch (e) {
+                console.error("Could not render Japanese title in PDF. Falling back to English.", e);
+                const pdfTitle = isAnswer ? 'Shikaku Puzzle - Answer' : 'Shikaku Puzzle';
+                doc.setFontSize(22);
+                doc.text(pdfTitle, 105, 20, { align: 'center' });
+            }
+
             const puzzleGrid = currentPuzzle.getQuestionGrid();
             const rows = currentPuzzle.height;
             const cols = currentPuzzle.width;
