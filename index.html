@@ -230,25 +230,13 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // --- FONT SETTING FOR PDF ---
-            // Using a standard font as a fallback. Japanese might not display correctly on all systems.
-            // A full solution requires embedding a Japanese font file.
             doc.setFont('helvetica', 'normal');
 
-            const title = isAnswer ? 'しかくパズル - 解答' : 'しかくパズル';
+            // Reverted to English titles for stability
+            const title = isAnswer ? 'Shikaku Puzzle - Answer' : 'Shikaku Puzzle';
+            doc.setFontSize(22);
+            doc.text(title, 105, 20, { align: 'center' });
             
-            // We'll try to use the Japanese title. It may or may not work depending on the user's PDF viewer.
-            // This is a limitation of jsPDF without full font embedding.
-            try {
-                doc.setFontSize(22);
-                doc.text(title, 105, 20, { align: 'center' });
-            } catch (e) {
-                console.error("Could not render Japanese title in PDF. Falling back to English.", e);
-                const pdfTitle = isAnswer ? 'Shikaku Puzzle - Answer' : 'Shikaku Puzzle';
-                doc.setFontSize(22);
-                doc.text(pdfTitle, 105, 20, { align: 'center' });
-            }
-
             const puzzleGrid = currentPuzzle.getQuestionGrid();
             const rows = currentPuzzle.height;
             const cols = currentPuzzle.width;
