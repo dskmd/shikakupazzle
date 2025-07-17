@@ -10,6 +10,7 @@
     <style>
         body {
             font-family: 'M PLUS Rounded 1c', sans-serif;
+            background-color: transparent; /* 背景を透過 */
         }
         .preview-grid-container {
             display: grid;
@@ -18,30 +19,21 @@
             position: relative;
         }
         .preview-grid-cell {
-            width: 25px;
-            height: 25px;
             border: 1px solid #ddd;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 0.8rem;
             font-weight: bold;
-        }
-        @media (max-width: 640px) {
-            .preview-grid-cell {
-                width: 22px;
-                height: 22px;
-            }
         }
     </style>
 </head>
-<body class="bg-transparent flex flex-col items-center justify-center min-h-screen p-4">
+<body class="flex flex-col items-center justify-center min-h-screen p-2 sm:p-4">
 
-    <div class="w-full max-w-2xl mx-auto bg-transparent rounded-2xl p-8">
+    <div class="w-full max-w-2xl mx-auto bg-transparent rounded-2xl p-4 sm:p-8">
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">しかくパズル</h1>
-        <p class="text-center text-gray-500 mb-6">「しかくパズル」の問題と解答をPDFで作成します。</p>
+        <p class="text-center text-gray-600 mb-6">「しかくパズル」の問題と解答をPDFで作成します。</p>
         
-        <div class="mb-6 p-4 border-2 border-dashed rounded-lg bg-transparent min-h-[300px] flex items-center justify-center">
+        <div id="preview-wrapper" class="mb-6 p-4 border-2 border-dashed rounded-lg bg-transparent min-h-[300px] flex items-center justify-center">
              <div id="puzzle-preview-container">
                 <!-- Grid preview will be generated here -->
             </div>
@@ -150,10 +142,11 @@
             ]
         };
         
+        const previewWrapper = document.getElementById('preview-wrapper');
+        const previewContainer = document.getElementById('puzzle-preview-container');
         const nextPuzzleButton = document.getElementById('next-puzzle-button');
         const downloadQuestionPdfButton = document.getElementById('download-question-pdf-button');
         const downloadAnswerPdfButton = document.getElementById('download-answer-pdf-button');
-        const previewContainer = document.getElementById('puzzle-preview-container');
         const pdfMessage = document.getElementById('pdf-message');
         const levelUpButton = document.getElementById('level-up-button');
         const levelDownButton = document.getElementById('level-down-button');
@@ -189,7 +182,10 @@
             previewContainer.innerHTML = '';
             const gridElement = document.createElement('div');
             const cols = puzzleGrid[0].length;
-            const cellSize = Math.floor(400 / cols);
+            
+            // --- Responsive Size Calculation ---
+            const containerWidth = previewWrapper.clientWidth - 32; // Subtract padding
+            const cellSize = Math.floor(containerWidth / cols);
             
             gridElement.className = 'preview-grid-container';
             gridElement.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -217,12 +213,9 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // IMPORTANT: For proper Japanese display in jsPDF, a Japanese font must be embedded.
-            // This uses a standard font, so characters may not render correctly in the PDF.
             doc.setFont('helvetica', 'normal');
 
             const title = isAnswer ? 'しかくパズル - 解答' : 'しかくパズル';
-            // Using English as a fallback for the PDF title to prevent garbled characters without font embedding.
             const pdfTitle = isAnswer ? 'Shikaku Puzzle - Answer' : 'Shikaku Puzzle';
             doc.setFontSize(22);
             doc.text(pdfTitle, 105, 20, { align: 'center' });
@@ -289,6 +282,13 @@
         // Initial setup
         updateLevelDisplay();
         generateNewPuzzle();
+        
+        // Redraw on window resize
+        window.addEventListener('resize', () => {
+            if(currentPuzzle){
+                displayPreview(currentPuzzle.getQuestionGrid());
+            }
+        });
 
     </script>
 </body>
